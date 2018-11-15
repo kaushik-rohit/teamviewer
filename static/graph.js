@@ -42,7 +42,11 @@ function networkChart() {
 					.attr('class', 'node')
 					.attr('r', 12)
 					.attr('id', function(d) { return d.id;})
-					.style('fill', function(d) { return color(d.connectivity); })
+					.style('fill', function(d) {
+						color.domain(d3.extent(nodes, function(f) { return color(f[current_choice]); }))
+							.range(['red', 'green']);
+						return color(d[current_choice]); 
+					})
 					.call(d3.drag()
 					.on("start", dragstarted)
 					.on("drag", dragged)
@@ -66,12 +70,13 @@ function networkChart() {
 			 .attr('name', 'color')
 			 .on('click', function(){
 				current_choice = d3.select('input[name="color"]:checked').node().value;
+				console.log(current_choice);
 				color.domain(d3.extent(nodes, function(d) { return color(d[current_choice]); }))
 					  .range(['red', 'green']);
 
 				node.style('fill', function(d) {return color(d[current_choice]);})
 			});
-
+			
 			function ticked() {
 			  link.attr("x1", function(d) { return d.source.x; })
 				  .attr("y1", function(d) { return d.source.y; })

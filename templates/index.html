@@ -1,59 +1,67 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<style>
 
-.area {
-  fill: steelblue;
-  clip-path: url(#clip);
-}
+<html>
+<head>
+	<title>Team Viewer</title>
+	<style>
 
-.zoom {
-  cursor: move;
-  fill: none;
-  pointer-events: all;
-}
+		.area {
+		  fill: steelblue;
+		  clip-path: url(#clip);
+		}
 
-#color{
-  position: relative;
-  top: 30px;
-  right: 300px;
-}
+		.zoom {
+		  cursor: move;
+		  fill: none;
+		  pointer-events: all;
+		}
 
-#graph{
-	position: relative;
-	top: 30px;
-	right: 200px;
-}
-label {
-  display: block;
-  padding-left: 15px;
-  text-indent: -15px;
-}
-input {
-  width: 13px;
-  height: 13px;
-  padding: 0;
-  margin:0;
-  vertical-align: bottom;
-  position: relative;
-  top: -1px;
-  *overflow: hidden;
-}
+		label {
+		  display: block;
+		  padding-left: 15px;
+		  text-indent: -15px;
+		}
+		input {
+		  width: 13px;
+		  height: 13px;
+		  padding: 0;
+		  margin:0;
+		  vertical-align: bottom;
+		  position: relative;
+		  top: -1px;
+		  *overflow: hidden;
+		}
+		#graph{
+			display: inline-block;
+		}
 
+		.container{
+			display: inline-flex;
+			height: 100%;
+		}
 
+		.chart{
+			width: 1000px;
+		}
+	</style>
+	
+	<script src="https://d3js.org/d3.v5.min.js"></script>
+	<script src="{{ url_for('static', filename = 'chart.js') }}"></script>
+	<script src="{{ url_for('static', filename = 'graph.js') }}"></script>
+</head>
+<body>
 
-</style>
-<div style='float: right' id='color'></div>
-<div style='float: right' id='graph'></div>
-<div id='mean'></div>
-<div id='kurtosis'></div>
-<div id='central'></div>
-<div id='robust'></div>
-<div id='context'></div>
-
-<script src="https://d3js.org/d3.v5.min.js"></script>
-<script src="{{ url_for('static', filename = 'chart.js') }}"></script>
-<script src="{{ url_for('static', filename = 'graph.js') }}"></script>
+<div id='container'>
+<div id='mean' class='chart'></div>
+<div id='kurtosis' class='chart'></div>
+<div id='central' class='chart'></div>
+<div id='robust' class='chart'></div>
+<div id='context' class='chart'></div>
+<div id='graph'>
+	<div style='float: right' id='color'></div>
+</div>
+</div>
 <script>
 var data = {{ data | tojson }};
 //parse data first
@@ -68,7 +76,7 @@ var brush = d3.brushX().extent([[0, 0], [960, 50]]);
 var chart = areaChart('mean', brush, 'mean degree');
 d3.select('#mean').datum(data).call(chart);
 
-var kurtosis = areaChart('kurtosis', brush, 'kurtosis');
+var kurtosis = areaChart('robustness', brush, 'robustness');
 d3.select('#kurtosis').datum(data).call(kurtosis);
 
 var skew = areaChart('skewness', brush, 'skewness');
@@ -78,7 +86,7 @@ var robustness = areaChart('var', brush, 'variance');
 d3.select('#robust').datum(data).call(robustness);
 
 //add brush handle
-var brush_handle = d3.select('#context').append('svg').attr('width', 960).attr('height', 300);
+var brush_handle = d3.select('#context').append('svg').attr('width', 960).attr('height', 200);
 
 brush_handle.append('g').attr('class', 'brush').call(brush).call(brush.move, 10);
 brush_handle.append("g").attr("class", "axis axis--x").call(chart.xAxis2);
@@ -93,24 +101,10 @@ brush.on('end', function() {
 	update_graph(s[0], s[1]);
 });
 
-const color_choice = ['variance', 'skewness', 'connectivity', 'kurtosis'];
-	
-var c = d3.select('#color').append('form')
-				.selectAll('label').data(color_choice)
-				.enter().append('label')
-				.attr('for',function(d,i){ return 'a'+i; })
-				.text(function(d){return d});
-				
-c.append('br');
-				
-c.append('input').attr('type', 'radio').attr("id", function(d,i) { return 'a'+i; })
-.property("checked", function(d, i) {return i===0;})
-.attr('value', function(d){return d})
-.attr('onClick', function(d){ d3.selectAll('input').property('checked', false); d3.select(this).property('checked', true);});
-
 function update_graph(start, end) {
 	var svg1 = d3.select('#graph');
 	svg1.selectAll('svg').remove();
+	svg1.selectAll('form').remove();
 
 	d3.json('http://127.0.0.1:5000/graph?start=' + start.toDateString()+ '&end=' + end.toDateString()).then(function(data){
 		var g = networkChart();
@@ -119,3 +113,5 @@ function update_graph(start, end) {
 }
 
 </script>
+</body>
+</html>

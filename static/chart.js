@@ -25,7 +25,6 @@ function areaChart(key, brush, title) {
 				 .on('zoom', chart.zoomed);
 	
 	var area = d3.area().curve(d3.curveMonotoneX).x(X).y0(height - margin.bottom - margin.top).y1(Y);
-	var area2 = d3.area().curve(d3.curveMonotoneX).x(X2).y0(height2).y1(Y2);
 	
 	var parseDate = d3.timeParse('%m/%d/%Y');
 	var focus = null;
