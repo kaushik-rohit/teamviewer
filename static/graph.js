@@ -4,7 +4,7 @@ function networkChart() {
 		
 		selection.each(function(data) {
 
-			const color_choice = ['variance', 'skewness', 'connectivity', 'kurtosis'];
+			const color_choice = ['variance', 'skewness', 'connectivity', 'mean'];
 			var current_choice = 'variance';
 
 			var svg = d3.select(this).selectAll("svg").data([data]);
@@ -15,7 +15,7 @@ function networkChart() {
 			var nodes = data['nodes'];
 			var links = data['links'];
 
-			var color = d3.scaleOrdinal( d3.schemeReds);
+			var color = d3.scaleOrdinal( d3.schemeCategory10);
 
 
 			var simulation = d3.forceSimulation()
@@ -43,7 +43,7 @@ function networkChart() {
 					.attr('r', 12)
 					.attr('id', function(d) { return d.id;})
 					.style('fill', function(d) {
-						color.domain(d3.extent(nodes, function(f) { return color(f[current_choice]); }))
+						color.domain(d3.extent(nodes, function(f) { return f; }))
 							.range(['red', 'green']);
 						return color(d[current_choice]); 
 					})
