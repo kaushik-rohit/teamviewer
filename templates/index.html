@@ -22,6 +22,7 @@
 		  padding-left: 15px;
 		  text-indent: -15px;
 		}
+
 		input {
 		  width: 13px;
 		  height: 13px;
@@ -32,17 +33,35 @@
 		  top: -1px;
 		  *overflow: hidden;
 		}
-		#graph{
-			display: inline-block;
-		}
 
-		.container{
-			display: inline-flex;
+		#container{
+			display: flex;
 			height: 100%;
 		}
 
 		.chart{
+			padding: 20px;
+		}
+
+		#charts{
 			width: 1000px;
+		}
+
+		#config{
+			background-color: lightgrey;
+			padding: 10px;
+		}
+
+		#config > *{
+			margin: 10px 0;
+		}
+
+		#network-container{
+			padding: 10px;
+		}
+
+		#network-container > *{
+			margin: 10px 0;
 		}
 	</style>
 	
@@ -51,66 +70,159 @@
 	<script src="{{ url_for('static', filename = 'graph.js') }}"></script>
 </head>
 <body>
-
 <div id='container'>
-<div id='mean' class='chart'></div>
-<div id='kurtosis' class='chart'></div>
-<div id='central' class='chart'></div>
-<div id='robust' class='chart'></div>
-<div id='context' class='chart'></div>
-<div id='graph'>
-	<div style='float: right' id='color'></div>
+	<div id='charts'>
+		<div id='mean' class='chart'><center><strong>mean</strong></center></div>
+		<div id='robustness' class='chart'><center><strong>robustness</strong></center></div>
+		<div id='skewness' class='chart'><center><strong>centrality</strong></center></div>
+		<div id='variance' class='chart'><center><strong>variance</strong></center></div>
+	</div>
+	<div id='network-container' style='border:thin solid black' width='400px'>
+		<b>Collaboration Network corresponding to the slider window:</b><br>
+		<div id='color-choice' style='border:thin solid red'>
+			<b>Select basis that each node affects the network:</b><br><br>
+			<form>
+				<label><input type="radio" name="color" value='skewness' checked> skewness</label>
+				<label><input type="radio" name="color" value='variance'> variance</label>
+				<label><input type="radio" name="color" value='connectivity'> connectivity</label>
+				<label><input type="radio" name="color" value='mean'> mean</label>
+			</form>
+		</div>
+		<div id='graph'>
+			<div style='float: right' id='color'></div>
+		</div>
+	</div>
+	<div id='config' style='border:thin solid black'>
+		Select the JSON File:<br>
+		<label></label><input type='file' name='select'>Select the JSON File with Slack Data</label>
+		Configure the analysis:<br>
+		<div id='window-size'>
+			Select the window size:<br><br>
+			<form>
+				<label><input type="radio" class='win' name="window" value="7" checked> 7 days</label>
+				<label><input type="radio" class='win' name="window" value="14"> 14 days </label>
+				<label><input type="radio" class='win' name="window" value="30"> 30 days </label>
+			</form>
+		</div>
+	</div>
 </div>
-</div>
+<div id='slider-container' class='chart' display='block'></div>
 <script>
 var data = {{ data | tojson }};
+var graph = null;
 //parse data first
 var parseDate = d3.timeParse('%m/%d/%Y');
 data.forEach(function(d) {
   d.date = parseDate(d.date);
 });
 
-var brush = d3.brushX().extent([[0, 0], [960, 50]]);
+build_chart(data); //build default chart
 
-//build chart elements
-var chart = areaChart('mean', brush, 'mean degree');
-d3.select('#mean').datum(data).call(chart);
+//add handle for json select
+d3.selectAll("input[name='select'").on('change', handleFileSelect);
 
-var kurtosis = areaChart('robustness', brush, 'robustness');
-d3.select('#kurtosis').datum(data).call(kurtosis);
-
-var skew = areaChart('skewness', brush, 'skewness');
-d3.select('#central').datum(data).call(skew);
-
-var robustness = areaChart('var', brush, 'variance');
-d3.select('#robust').datum(data).call(robustness);
-
-//add brush handle
-var brush_handle = d3.select('#context').append('svg').attr('width', 960).attr('height', 200);
-
-brush_handle.append('g').attr('class', 'brush').call(brush).call(brush.move, 10);
-brush_handle.append("g").attr("class", "axis axis--x").call(chart.xAxis2);
-
-brush.on('end', function() {
-	chart.brushed(this);
-	kurtosis.brushed(this);
-	skew.brushed(this);
-	robustness.brushed(this);
-	
-	var s = chart.end();
-	update_graph(s[0], s[1]);
-});
-
-function update_graph(start, end) {
+//update function for graph on window slide
+function update_graph(start, end, window=7) {
 	var svg1 = d3.select('#graph');
 	svg1.selectAll('svg').remove();
 	svg1.selectAll('form').remove();
 
 	d3.json('http://127.0.0.1:5000/graph?start=' + start.toDateString()+ '&end=' + end.toDateString()).then(function(data){
-		var g = networkChart();
-		svg1.datum(data).call(g);
+		graph = networkChart();
+		svg1.datum(data).call(graph);
 	});
 }
+
+//update chart on window size change
+function update_chart(data) {
+	data.forEach(function(d) {
+		d.date = parseDate(d.date);
+	});
+
+	d3.select('#mean').selectAll('*').remove();
+	d3.select('#robustness').selectAll('*').remove();
+	d3.select('#skewness').selectAll('*').remove();
+	d3.select('#variance').selectAll('*').remove();
+	d3.select('#slider-container').selectAll('*').remove();
+	build_chart(data);
+}
+
+function build_chart(data) {
+	
+	//build chart elements
+	var mean = areaChart('mean', 'mean degree');
+	d3.select('#mean').datum(data).call(mean);
+
+	var robustness = areaChart('robustness', 'robustness');
+	d3.select('#robustness').datum(data).call(robustness);
+
+	var skew = areaChart('skewness', 'skewness');
+	d3.select('#skewness').datum(data).call(skew);
+
+	var variance = areaChart('var', 'variance');
+	d3.select('#variance').datum(data).call(variance);
+
+	//add brush handle
+	var brush_handle = d3.select('#slider-container').append('svg').attr('width', 960).attr('height', 200);
+	var brush = d3.brushX().extent([[0, 0], [960, 50]]);
+	var sz = d3.select('input[name="window"]:checked').node().value;
+	brush_handle.append('g').attr('class', 'brush').call(brush).call(brush.move, [10,(sz/7)*100]);
+	brush_handle.append("g").attr("class", "axis axis--x").call(mean.xAxis2);
+	
+	//update chart on window size diff
+	d3.selectAll("input[name='window']").on('change', function() {
+		d3.json('http://127.0.0.1:5000/stats?window=' + this.value).then(function(data){
+			update_chart(data);
+		})
+	});
+
+	//update chart on window size diff
+	d3.selectAll("input[name='color']").on('change', function() {
+		if(graph === null){
+			return;
+		}
+
+		graph.color(this.value);
+	});
+
+	brush.on('end', function() {
+		mean.brushed(this);
+		variance.brushed(this);
+		skew.brushed(this);
+		robustness.brushed(this);
+		
+		var s = mean.end();
+		update_graph(s[0], s[1]);
+	});
+
+	d3.selectAll('.brush>.handle').remove();
+    // removes crosshair cursor
+    d3.selectAll('.brush>.overlay').remove();
+}
+
+function handleFileSelect() {
+	// Check for the various File API support.
+	if (window.File && window.FileReader && window.FileList && window.Blob) {
+    // Great success! All the File APIs are supported.
+    } else {
+        alert('The File APIs are not fully supported in this browser.');
+    }
+
+    var f = event.target.files[0]; // FileList object
+    var reader = new FileReader();
+
+    reader.onload = function(event) {
+        load_d3(event.target.result)
+    };
+    // Read in the file as a data URL.
+    reader.readAsDataURL(f);
+}
+
+function load_d3(fileHandler) {
+    d3.json(fileHandler).then( function(data) {
+        update_chart(data);
+    });
+};
 
 </script>
 </body>

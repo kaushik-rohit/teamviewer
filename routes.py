@@ -15,12 +15,12 @@ import scipy.stats as stat
 import numpy as np
 from teamviewer import app
 
-with open(os.getcwd()+'\\data\\conversation_data.json') as f:
+with open(os.getcwd()+'\\data\\graph.json') as f:
     temp = json.load(f)
     data = temp['edges']
     nodes = temp['nodes']
 
-with open(os.getcwd()+'\\data\\data3.json') as f:
+with open(os.getcwd()+'\\data\\stats.json') as f:
     temp = json.load(f)
     dt = temp
 
@@ -32,7 +32,59 @@ def stats(network):
     for k, v in network.nodes.items():
         degree.append(v['degree'])
     
-    return [pp.algorithms.spectral.algebraic_connectivity(network), np.mean(degree), np.var(degree), stat.kurtosis(degree), stat.skew(degree) ]
+    return [pp.algorithms.spectral.algebraic_connectivity(network, maxiter=30), np.mean(degree), np.var(degree), stat.kurtosis(degree), stat.skew(degree) ]
+
+def conversation_stat(days):
+    window_size = days*24*60*60 # window size is 30*24*60*60 seconds = 30days
+
+    t= pp.TemporalNetwork()
+    for d in data:
+        if(d['from'] == '' or d['to'] == ''):
+            continue
+        t.add_edge(d["from"], d["to"], d["timestamp"])
+    degree = []
+    mean = []
+    eigen = []
+    rt = pp.RollingTimeWindow(t, window_size, step_size=1*24*60*60, directed=False) #step size is 1*24*60*60 seconds that is 1 day
+    for cn in rt:
+        degree_temp = []
+        for k, v in cn.nodes.items():
+            degree_temp.append(v['degree'])
+        degree.append(degree_temp)
+        eigen.append(pp.algorithms.spectral.algebraic_connectivity(cn))
+        mean.append(pp.algorithms.statistics.mean_degree(cn))
+        #pp.visualisation.plot(cn)
+
+
+    variance = [np.var(l) for l in degree]
+    skewness = [stat.skew(l) for l in degree]
+    kurtosis = [stat.kurtosis(l, fisher=False) for l in degree]
+
+    mean_base = []
+    variance_base = []
+    skewness_base = []
+    kurtosis_base = []
+    dump = []
+    dt = parser.parse(min([x['timestamp'] for x in data])).date()
+    for i in range(len(mean)):
+        temp = {}
+        m, v, s,k = stat.poisson.stats(mean[i], moments='mvsk')
+        temp['date'] = dt.strftime('%m/%d/%Y')
+        mean_base.append(m)
+        variance_base.append(v)
+        skewness_base.append(s)
+        kurtosis_base.append(k)
+
+        temp['mean'] = float(m)
+        temp['var'] = float(variance[i] - v)
+        print(skewness[i] - s)
+        temp['skewness'] = skewness[i] - s
+        temp['kurtosis'] = kurtosis[i] - k
+        temp['robustness'] = float(eigen[i])
+        dump.append(temp)
+        dt = dt + timedelta(days=1)
+    
+    return dump
 
 def diff_dict(s1, s2):
     return {'connectivity' : s1[0] - s2[0], 'mean': s1[1] - s2[1], 'variance':s1[2] - s2[2], 'kurtosis': s1[3] - s2[3], 'skewness' : s1[4] - s2[4]}
@@ -82,11 +134,10 @@ def returnAll():
     print(jsonify(dump))
     return jsonify(dump)
 
-@app.route('/stats', methods=['GET'])
+@app.route('/stats', methods=['GET', 'POST'])
 def returnStats():
-    dump = {}
-
-    return jsonify(dump)
+    size = int(request.args.get('window'))
+    return jsonify(conversation_stat(size))
 
 if __name__ == "__main__":
     app.run(debug=True)

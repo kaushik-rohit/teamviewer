@@ -1,4 +1,4 @@
-function areaChart(key, brush, title) {
+function areaChart(key, title) {
 	var margin = {top: 20, right: 40, bottom: 30, left: 20},
 		margin2 = {top: 240, right: 40, bottom: 10, left: 20},
 	    width = 960,
@@ -6,7 +6,9 @@ function areaChart(key, brush, title) {
 		height2 = 50,
 		xValue = function(d) {return d['date'];},
 		yValue = function(d) {return d[key];};
-		
+	
+	var brush = d3.brushX().extent([[0, 0], [width, height]]);
+	
 	var xScale = d3.scaleTime().range([0, width]),
 		yScale = d3.scaleLinear().range([height - margin.top - margin.bottom, 0]),
 		xAxis = d3.axisBottom(xScale),
@@ -17,12 +19,6 @@ function areaChart(key, brush, title) {
 		xAxis2 = d3.axisBottom(xScale2);
 	
 	var color = d3.scaleOrdinal(d3.schemeCategory20);
-					  
-	var zoom = d3.zoom()
-				 .scaleExtent([1, Infinity])
-				 .translateExtent([[0, 0], [width, height - margin.top - margin.bottom]])
-				 .extent([[0, 0], [width, height]])
-				 .on('zoom', chart.zoomed);
 	
 	var area = d3.area().curve(d3.curveMonotoneX).x(X).y0(height - margin.bottom - margin.top).y1(Y);
 	
@@ -54,20 +50,15 @@ function areaChart(key, brush, title) {
         // Otherwise, create the skeletal chart.
 		gEnter = svg.enter().append("svg");
 		
-		gEnter.append('text')
-			   .attr('x', width/2)
-			   .attr('y', 0 - (margin.top/2))
-			   .attr('text-anchor', 'middle')
-			   .style('font-size', '16px')
-			   .style('text-decoration', 'underline')
-			   .text('chart');
+		//update chart and remove exit selections 
+		svg.exit().remove();
 		
 		gEnter.append("defs").append("clipPath")
 		   .attr("id", "clip")
 		   .append("rect")
 		   .attr("width", width)
 		   .attr("height", height);
-		   
+		
 		focus = gEnter.append("g")
 					   .attr("class", "focus")
 					   .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -85,16 +76,16 @@ function areaChart(key, brush, title) {
 			 .attr("class", "axis axis--y")
 			 .call(yAxis);
 		
+		focus.append('g').attr('class', 'brush').call(brush);
+		
+		d3.selectAll('.brush>.handle').remove();
+		// removes crosshair cursor
+		d3.selectAll('.brush>.overlay').remove();
+
 		// Update the outer dimensions.
 		gEnter.attr("width", width)
 		   .attr("height", height);
 		   
-		gEnter.append("rect")
-		   .attr("class", "zoom")
-		   .attr("width", width)
-		   .attr("height", height)
-		   .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-		   .call(zoom);
 		});
 	}
   
@@ -153,24 +144,10 @@ function areaChart(key, brush, title) {
 		return xAxis2;
 	}
 	
-	chart.zoomed = function zoomed(brush) {
-		if (d3.event.sourceEvent && d3.event.sourceEvent.type === "brush") return; // ignore zoom-by-brush
-		var t = d3.event.transform;
-		xScale.domain(t.rescaleX(xScale2).domain());
-		focus.select(".area").attr("d", area);
-		focus.select(".axis--x").call(xAxis);
-		brush.call(brush.move, xScale.range().map(t.invertX, t));
-	}
-	
 	chart.brushed =	function brushed() {
-		if (d3.event.sourceEvent && d3.event.sourceEvent.type === "zoom") return; // ignore brush-by-zoom
-		var s = d3.event.selection || xScale2.range();
-		xScale.domain(s.map(xScale2.invert, xScale2));
-		focus.select(".area").attr("d", area);
-		focus.select(".axis--x").call(xAxis);
-		gEnter.select(".zoom").call(zoom.transform, d3.zoomIdentity
-		  .scale(width / (s[1] - s[0]))
-		  .translate(-s[0], 0));
+		var ends = chart.end();
+		console.log(ends);
+		focus.select('.brush').call(brush.move, [xScale(ends[0]),xScale(ends[1])]);
 	}
 	
 	chart.end = function getend() {

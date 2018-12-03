@@ -2,6 +2,10 @@ function networkChart() {
 	
 	function chart(selection) {
 		
+		var color = d3.scaleSequential(d3.interpolateRgb("red", "green"));
+		var nodes = null;
+		var links = null;
+
 		selection.each(function(data) {
 
 			const color_choice = ['variance', 'skewness', 'connectivity', 'mean'];
@@ -12,11 +16,8 @@ function networkChart() {
 			var width = 700;
 			var height = 500;
 
-			var nodes = data['nodes'];
-			var links = data['links'];
-
-			var color = d3.scaleOrdinal( d3.schemeCategory10);
-
+			nodes = data['nodes'];
+			links = data['links'];
 
 			var simulation = d3.forceSimulation()
 								.force('charge', d3.forceManyBody().strength(-200))
@@ -43,9 +44,8 @@ function networkChart() {
 					.attr('r', 12)
 					.attr('id', function(d) { return d.id;})
 					.style('fill', function(d) {
-						color.domain(d3.extent(nodes, function(f) { return f; }))
-							.range(['red', 'green']);
-						return color(d[current_choice]); 
+						color.domain(d3.extent(nodes, function(f) { return f[current_choice]; }));
+						return color(d[current_choice]);
 					})
 					.call(d3.drag()
 					.on("start", dragstarted)
@@ -54,28 +54,6 @@ function networkChart() {
 
 			node.append("title")
 				.text(function(d) { return d.id; });
-
-			var c = d3.select(this).select('#color').append('form')
-				.selectAll('label').data(color_choice)
-				.enter().append('label')
-				.attr('for',function(d,i){ return 'a'+i; })
-				.text(function(d){return d});
-
-			c.append('br');
-
-			c.append('input')
-			 .attr('type', 'radio').attr("id", function(d,i) { return 'a'+i; })
-			 .property("checked", function(d, i) {return i===0;})
-			 .attr('value', function(d){return d})
-			 .attr('name', 'color')
-			 .on('click', function(){
-				current_choice = d3.select('input[name="color"]:checked').node().value;
-				console.log(current_choice);
-				color.domain(d3.extent(nodes, function(d) { return color(d[current_choice]); }))
-					  .range(['red', 'green']);
-
-				node.style('fill', function(d) {return color(d[current_choice]);})
-			});
 			
 			function ticked() {
 			  link.attr("x1", function(d) { return d.source.x; })
@@ -104,6 +82,14 @@ function networkChart() {
 			  d.fy = null;
 			}
 		});
+
+		chart.color = function(filter){
+			d3.selectAll('.node')
+			  .style('fill', function(d) {
+					color.domain(d3.extent(nodes, function(dat) { return dat[filter]; }));
+					return color(d[filter]);
+				})
+		}
 	}
 
 	return chart;
