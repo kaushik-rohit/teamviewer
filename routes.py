@@ -34,11 +34,13 @@ def stats(network):
     
     return [pp.algorithms.spectral.algebraic_connectivity(network, maxiter=30), np.mean(degree), np.var(degree), stat.kurtosis(degree), stat.skew(degree) ]
 
-def conversation_stat(days):
+def conversation_stat(data, days):
     window_size = days*24*60*60 # window size is 30*24*60*60 seconds = 30days
+    edges = data["edges"]
+    nodes = data["nodes"]
 
     t= pp.TemporalNetwork()
-    for d in data:
+    for d in edges:
         if(d['from'] == '' or d['to'] == ''):
             continue
         t.add_edge(d["from"], d["to"], d["timestamp"])
@@ -137,7 +139,13 @@ def returnAll():
 @app.route('/stats', methods=['GET', 'POST'])
 def returnStats():
     size = int(request.args.get('window'))
-    return jsonify(conversation_stat(size))
+    return jsonify(conversation_stat(data, size))
+
+@app.route('/filechange', methods=['POST'])
+def returnStats2():
+    data = request.json
+    print(data)
+    return jsonify(conversation_stat(data, 7))
 
 if __name__ == "__main__":
     app.run(debug=True)

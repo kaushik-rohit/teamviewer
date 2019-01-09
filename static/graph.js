@@ -2,14 +2,13 @@ function networkChart() {
 	
 	function chart(selection) {
 		
-		var color = d3.scaleSequential(d3.interpolateRgb("red", "green"));
+		var color = d3.scaleSequential(d3.interpolatePiYG);
 		var nodes = null;
 		var links = null;
 
 		selection.each(function(data) {
 
-			const color_choice = ['variance', 'skewness', 'connectivity', 'mean'];
-			var current_choice = 'variance';
+			var current_choice = 'skewness';
 
 			var svg = d3.select(this).selectAll("svg").data([data]);
 			var gEnter = svg.enter().append("svg").attr('width', 700).attr('height', 500);

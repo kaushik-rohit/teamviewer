@@ -130,6 +130,7 @@ function update_graph(start, end, window=7) {
 	d3.json('http://127.0.0.1:5000/graph?start=' + start.toDateString()+ '&end=' + end.toDateString()).then(function(data){
 		graph = networkChart();
 		svg1.datum(data).call(graph);
+		graph.color(d3.select('input[name="color"]:checked').node().value);
 	});
 }
 
@@ -148,7 +149,6 @@ function update_chart(data) {
 }
 
 function build_chart(data) {
-	
 	//build chart elements
 	var mean = areaChart('mean', 'mean degree');
 	d3.select('#mean').datum(data).call(mean);
@@ -175,7 +175,7 @@ function build_chart(data) {
 			update_chart(data);
 		})
 	});
-
+	
 	//update chart on window size diff
 	d3.selectAll("input[name='color']").on('change', function() {
 		if(graph === null){
@@ -201,6 +201,7 @@ function build_chart(data) {
 }
 
 function handleFileSelect() {
+	console.log('handlefileselect');
 	// Check for the various File API support.
 	if (window.File && window.FileReader && window.FileList && window.Blob) {
     // Great success! All the File APIs are supported.
@@ -208,7 +209,7 @@ function handleFileSelect() {
         alert('The File APIs are not fully supported in this browser.');
     }
 
-    var f = event.target.files[0]; // FileList object
+    var f = d3.event.target.files[0]; // FileList object
     var reader = new FileReader();
 
     reader.onload = function(event) {
@@ -220,7 +221,18 @@ function handleFileSelect() {
 
 function load_d3(fileHandler) {
     d3.json(fileHandler).then( function(data) {
-        update_chart(data);
+		console.log(JSON.stringify(data))
+		value = d3.select('input[name="window"]:checked').node().value
+		d3.json('http://127.0.0.1:5000/filechange', {
+			method:"POST",
+			body: JSON.stringify(data),
+			headers: {
+				"Content-type": "application/json; charset=UTF-8"
+			}
+			})
+    .then(stats => {
+      update_chart(stats);
+    });
     });
 };
 
